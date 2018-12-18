@@ -6,6 +6,7 @@ const BigInteger = require('bigi');
 const keyUtils = require('./key_utils');
 const PublicKey = require('./key_public');
 const PrivateKey = require('./key_private');
+const secp256k1 = require('secp256k1');
 
 module.exports = Signature
 
@@ -193,6 +194,40 @@ Signature.sign = function(data, privateKey, encoding = 'utf8') {
     @return {Signature}
 */
 Signature.signHash = function(dataSha256, privateKey, encoding = 'hex') {
+    if(typeof dataSha256 === 'string') {
+        dataSha256 = Buffer.from(dataSha256, encoding)
+    }
+    if( dataSha256.length !== 32 || ! Buffer.isBuffer(dataSha256) )
+        throw new Error("dataSha256: 32 byte buffer requred")
+
+    privateKey = PrivateKey(privateKey)
+    assert(privateKey, 'privateKey required')
+
+    var der, secpsig, i, lenR, lenS, nonce, r, s;
+    i = null;
+    nonce = 0;
+
+    while (true) {
+      secpsig = secp256k1.sign(dataSha256, privateKey.toBuffer(), {data: hash.sha256(Buffer.concat([dataSha256, new Buffer(nonce++)]))});
+      der = secp256k1.signatureExport(secpsig.signature);
+      lenR = der[3];
+      lenS = der[5 + lenR];
+      if (lenR === 32 && lenS === 32) {
+        i = secpsig.recovery;
+        i += 4;  // compressed
+        i += 27; // compact  //  24 or 27 :( forcing odd-y 2nd key candidate)
+        break;
+      }
+      if (nonce % 10 === 0) {
+        console.log("WARN: " + nonce + " attempts to find canonical signature");
+      }
+    }
+    r = BigInteger.fromBuffer(secpsig.signature.slice(0, 32));
+    s = BigInteger.fromBuffer(secpsig.signature.slice(32));
+    return Signature(r, s, i);
+};
+
+Signature.signHashOld = function(dataSha256, privateKey, encoding = 'hex') {
     if(typeof dataSha256 === 'string') {
         dataSha256 = Buffer.from(dataSha256, encoding)
     }
