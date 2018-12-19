@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "test": "mocha --use_strict src/*.test.js",
+    "benchmark": "node benchmark/index.js",
     "coverage": "nyc --reporter=html npm test",
     "coveralls": "npm run coverage && cat ./coverage/lcov.info | ./node_modules/.bin/coveralls",
     "documentation": "node_modules/documentation/bin/documentation.js",
@@ -32,8 +33,10 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "benchmark": "^2.1.4",
     "coveralls": "^3.0.0",
     "documentation": "^8.1.1",
+    "eosjs-ecc": "^4.0.4",
     "istanbul": "^0.4.5",
     "mocha": "^5.2.0",
     "nyc": "^13.0.1",
