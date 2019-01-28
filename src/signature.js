@@ -1,8 +1,5 @@
-const ecdsa = require('./ecdsa');
 const hash = require('./hash');
-const curve = require('ecurve').getCurveByName('secp256k1');
 const assert = require('assert');
-const BigInteger = require('bigi');
 const keyUtils = require('./key_utils');
 const PublicKey = require('./key_public');
 const PrivateKey = require('./key_private');
@@ -10,10 +7,13 @@ const secp256k1 = require('secp256k1');
 
 module.exports = Signature
 
-function Signature(r, s, i) {
-    assert.equal(r != null, true, 'Missing parameter');
-    assert.equal(s != null, true, 'Missing parameter');
+function Signature(rs, i) {
+    assert.equal(rs != null, true, 'Missing parameter');
     assert.equal(i != null, true, 'Missing parameter');
+    if(!Buffer.isBuffer(rs)) {
+        throw new TypeError('Invalid signature')
+    }
+    assert.equal(rs.length, 64, 'Signature incorrect length');
 
     /**
         Verify signed data.
@@ -52,7 +52,7 @@ function Signature(r, s, i) {
         const publicKey = PublicKey(pubkey)
         assert(publicKey, 'pubkey required')
 
-        return secp256k1.verify(dataSha256, toSecp256k1Buffer(), publicKey.Q);
+        return secp256k1.verify(dataSha256, rs, publicKey.Q);
     };
 
     /** @deprecated
@@ -103,20 +103,15 @@ function Signature(r, s, i) {
         let i2 = i;
         i2 -= 27;
         i2 = i2 & 3;
-        return PublicKey.fromBuffer(secp256k1.recover(dataSha256, toSecp256k1Buffer(), i2));
+        return PublicKey.fromBuffer(secp256k1.recover(dataSha256, rs, i2));
     };
 
     function toBuffer() {
         var buf;
         buf = new Buffer(65);
         buf.writeUInt8(i, 0);
-        r.toBuffer(32).copy(buf, 1);
-        s.toBuffer(32).copy(buf, 33);
+        rs.copy(buf, 1);
         return buf;
-    };
-
-    function toSecp256k1Buffer() {
-        return toBuffer().slice(1);
     };
 
     function toHex() {
@@ -134,7 +129,7 @@ function Signature(r, s, i) {
     }
 
     return {
-        r, s, i,
+        rs, i,
         toBuffer,
         verify,
         verifyHash,
@@ -220,9 +215,7 @@ Signature.signHash = function(dataSha256, privateKey, encoding = 'hex') {
         console.log("WARN: " + nonce + " attempts to find canonical signature");
       }
     }
-    r = BigInteger.fromBuffer(secpsig.signature.slice(0, 32));
-    s = BigInteger.fromBuffer(secpsig.signature.slice(32));
-    return Signature(r, s, i);
+    return Signature(secpsig.signature, i);
 };
 
 Signature.fromBuffer = function(buf) {
@@ -231,9 +224,7 @@ Signature.fromBuffer = function(buf) {
     assert.equal(buf.length, 65, 'Invalid signature length');
     i = buf.readUInt8(0);
     assert.equal(i - 27, i - 27 & 7, 'Invalid signature parameter');
-    r = BigInteger.fromBuffer(buf.slice(1, 33));
-    s = BigInteger.fromBuffer(buf.slice(33));
-    return Signature(r, s, i);
+    return Signature(buf.slice(1), i);
 };
 
 Signature.fromHex = function(hex) {

@@ -1,6 +1,6 @@
 {
   "name": "eosjs-ecc-native",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Elliptic curve cryptography functions",
   "keywords": "ECC, Private Key, Public Key, Signature, AES, Encryption, Decryption",
   "main": "src/index.js",
@@ -22,12 +22,10 @@
     "url": "git://github.com/porkchop/eosjs-ecc.git"
   },
   "dependencies": {
-    "bigi": "^1.4.2",
     "bs58": "^4.0.1",
     "bytebuffer": "^5.0.1",
     "create-hash": "^1.1.3",
     "create-hmac": "^1.1.6",
-    "ecurve": "^1.0.5",
     "randombytes": "^2.0.5",
     "secp256k1": "^3.5.2"
   },
@@ -41,10 +39,5 @@
     "mocha": "^5.2.0",
     "nyc": "^13.0.1",
     "uglify-js": "3.4.2"
-  },
-  "babel": {
-    "presets": [
-      "es2015"
-    ]
   }
 }

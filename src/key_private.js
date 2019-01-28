@@ -1,9 +1,5 @@
-const ecurve = require('ecurve');
-const Point = ecurve.Point;
-const secp256k1 = ecurve.getCurveByName('secp256k1');
-const BigInteger = require('bigi');
 const assert = require('assert');
-const secp256k1Lib = require('secp256k1');
+const secp256k1 = require('secp256k1');
 
 const hash = require('./hash');
 const PublicKey = require('./key_public');
@@ -68,32 +64,32 @@ function PrivateKey(d) {
             // S L O W in the browser
             return public_key
         }
-        return public_key = PublicKey.fromBuffer(secp256k1Lib.publicKeyCreate(d));
+        return public_key = PublicKey.fromBuffer(secp256k1.publicKeyCreate(d));
     }
 
     function toBuffer() {
         return d;
     }
 
-    /**
-      ECIES
-      @arg {string|Object} pubkey wif, PublicKey object
-      @return {Buffer} 64 byte shared secret
-    */
-    function getSharedSecret(public_key) {
-        public_key = PublicKey(public_key)
-        let KB = public_key.toUncompressed().toBuffer()
-        let KBP = Point.fromAffine(
-          secp256k1,
-          BigInteger.fromBuffer( KB.slice( 1,33 )), // x
-          BigInteger.fromBuffer( KB.slice( 33,65 )) // y
-        )
-        let r = d
-        let P = KBP.multiply(BigInteger.fromBuffer(r))
-        let S = P.affineX.toBuffer({size: 32})
-        // SHA512 used in ECIES
-        return hash.sha512(S)
-    }
+    // /**
+    //   ECIES
+    //   @arg {string|Object} pubkey wif, PublicKey object
+    //   @return {Buffer} 64 byte shared secret
+    // */
+    // function getSharedSecret(public_key) {
+    //     public_key = PublicKey(public_key)
+    //     let KB = public_key.toUncompressed().toBuffer()
+    //     let KBP = Point.fromAffine(
+    //       secp256k1,
+    //       BigInteger.fromBuffer( KB.slice( 1,33 )), // x
+    //       BigInteger.fromBuffer( KB.slice( 33,65 )) // y
+    //     )
+    //     let r = d
+    //     let P = KBP.multiply(BigInteger.fromBuffer(r))
+    //     let S = P.affineX.toBuffer({size: 32})
+    //     // SHA512 used in ECIES
+    //     return hash.sha512(S)
+    // }
 
     // /** ECIES TODO unit test
     //   @arg {string|Object} pubkey wif, PublicKey object
@@ -130,7 +126,7 @@ function PrivateKey(d) {
         toString,
         toPublic,
         toBuffer,
-        getSharedSecret,
+        // getSharedSecret,
         getChildKey
     }
 }
