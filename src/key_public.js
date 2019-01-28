@@ -1,14 +1,8 @@
 const assert = require('assert');
-const ecurve = require('ecurve');
-const BigInteger = require('bigi');
-const secp256k1 = ecurve.getCurveByName('secp256k1');
-const secp256k1Lib = require('secp256k1');
+const secp256k1 = require('secp256k1');
 
 const hash = require('./hash');
 const keyUtils = require('./key_utils');
-
-var G = secp256k1.G
-var n = secp256k1.n
 
 module.exports = PublicKey
 
@@ -34,7 +28,7 @@ function PublicKey(Q, pubkey_prefix = 'EOS') {
 
     function toBuffer(_compressed = compressed) {
         if(!_compressed && compressed) {
-          return secp256k1Lib.publicKeyConvert(Q, false);
+          return secp256k1.publicKeyConvert(Q, false);
         }
         return Q;
     }
@@ -47,7 +41,7 @@ function PublicKey(Q, pubkey_prefix = 'EOS') {
     }
 
     function toUncompressed() {
-        return secp256k1Lib.publicKeyConvert(Q, false);
+        return secp256k1.publicKeyConvert(Q, false);
     }
 
     /** @deprecated */
@@ -59,7 +53,7 @@ function PublicKey(Q, pubkey_prefix = 'EOS') {
 
         offset = Buffer.concat([ toBuffer(), offset ])
         offset = hash.sha256( offset )
-        return PublicKey.fromBuffer(secp256k1Lib.secretKeyTweakAdd(Q, offset))
+        return PublicKey.fromBuffer(secp256k1.secretKeyTweakAdd(Q, offset))
     }
 
     function toHex() {
