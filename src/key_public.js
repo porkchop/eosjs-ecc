@@ -2,6 +2,7 @@ const assert = require('assert');
 const ecurve = require('ecurve');
 const BigInteger = require('bigi');
 const secp256k1 = ecurve.getCurveByName('secp256k1');
+const secp256k1Lib = require('secp256k1');
 
 const hash = require('./hash');
 const keyUtils = require('./key_utils');
@@ -20,44 +21,33 @@ function PublicKey(Q, pubkey_prefix = 'EOS') {
         const publicKey = PublicKey.fromString(Q, pubkey_prefix)
         assert(publicKey != null, 'Invalid public key')
         return publicKey
-    } else if(Buffer.isBuffer(Q)) {
-        return PublicKey.fromBuffer(Q)
-    } else if(typeof Q === 'object' && Q.Q) {
+    } else if(typeof Q === 'object' && Buffer.isBuffer(Q.Q)) {
       return PublicKey(Q.Q)
     }
 
-    assert.equal(typeof Q, 'object', 'Invalid public key')
-    assert.equal(typeof Q.compressed, 'boolean', 'Invalid public key')
 
-    function toBuffer(compressed = Q.compressed) {
-        return Q.getEncoded(compressed);
+    if(!Buffer.isBuffer(Q)) {
+        throw new TypeError('Invalid public key')
     }
 
-    let pubdata // cache
+    let compressed = Q.length === 33;
 
-    // /**
-    //     @todo secp224r1
-    //     @return {string} PUB_K1_base58pubkey..
-    // */
-    // function toString() {
-    //     if(pubdata) {
-    //         return pubdata
-    //     }
-    //     pubdata = `PUB_K1_` + keyUtils.checkEncode(toBuffer(), 'K1')
-    //     return pubdata;
-    // }
+    function toBuffer(_compressed = compressed) {
+        if(!_compressed && compressed) {
+          return secp256k1Lib.publicKeyConvert(Q, false);
+        }
+        return Q;
+    }
 
     /** @todo rename to toStringLegacy
      * @arg {string} [pubkey_prefix = 'EOS'] - public key prefix
     */
     function toString(pubkey_prefix = 'EOS') {
-      return pubkey_prefix + keyUtils.checkEncode(toBuffer())
+      return pubkey_prefix + keyUtils.checkEncode(Q)
     }
 
     function toUncompressed() {
-        var buf = Q.getEncoded(false);
-        var point = ecurve.Point.decodeFrom(secp256k1, buf);
-        return PublicKey.fromPoint(point);
+        return secp256k1Lib.publicKeyConvert(Q, false);
     }
 
     /** @deprecated */
@@ -69,24 +59,11 @@ function PublicKey(Q, pubkey_prefix = 'EOS') {
 
         offset = Buffer.concat([ toBuffer(), offset ])
         offset = hash.sha256( offset )
-
-        let c = BigInteger.fromBuffer( offset )
-
-        if (c.compareTo(n) >= 0)
-            throw new Error("Child offset went out of bounds, try again")
-
-
-        let cG = G.multiply(c)
-        let Qprime = Q.add(cG)
-
-        if( secp256k1.isInfinity(Qprime) )
-            throw new Error("Child offset derived to an invalid key, try again")
-
-        return PublicKey.fromPoint(Qprime)
+        return PublicKey.fromBuffer(secp256k1Lib.secretKeyTweakAdd(Q, offset))
     }
 
     function toHex() {
-        return toBuffer().toString('hex');
+        return Q.toString('hex');
     }
 
     return {
@@ -118,11 +95,7 @@ PublicKey.fromBinary = function(bin) {
 }
 
 PublicKey.fromBuffer = function(buffer) {
-    return PublicKey(ecurve.Point.decodeFrom(secp256k1, buffer));
-}
-
-PublicKey.fromPoint = function(point) {
-    return PublicKey(point);
+    return PublicKey(buffer);
 }
 
 /**

@@ -52,11 +52,7 @@ function Signature(r, s, i) {
         const publicKey = PublicKey(pubkey)
         assert(publicKey, 'pubkey required')
 
-        return ecdsa.verify(
-            curve, dataSha256,
-            { r: r, s: s },
-            publicKey.Q
-        );
+        return secp256k1.verify(dataSha256, toSecp256k1Buffer(), publicKey.Q);
     };
 
     /** @deprecated
@@ -104,12 +100,10 @@ function Signature(r, s, i) {
             throw new Error("dataSha256: 32 byte String or buffer requred")
         }
 
-        const e = BigInteger.fromBuffer(dataSha256);
-        let i2 = i
+        let i2 = i;
         i2 -= 27;
         i2 = i2 & 3;
-        const Q = ecdsa.recoverPubKey(curve, e, {r, s, i}, i2);
-        return PublicKey.fromPoint(Q);
+        return PublicKey.fromBuffer(secp256k1.recover(dataSha256, toSecp256k1Buffer(), i2));
     };
 
     function toBuffer() {
@@ -119,6 +113,10 @@ function Signature(r, s, i) {
         r.toBuffer(32).copy(buf, 1);
         s.toBuffer(32).copy(buf, 33);
         return buf;
+    };
+
+    function toSecp256k1Buffer() {
+        return toBuffer().slice(1);
     };
 
     function toHex() {
