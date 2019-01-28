@@ -3,15 +3,13 @@ const Point = ecurve.Point;
 const secp256k1 = ecurve.getCurveByName('secp256k1');
 const BigInteger = require('bigi');
 const assert = require('assert');
+const secp256k1Lib = require('secp256k1');
 
 const hash = require('./hash');
 const PublicKey = require('./key_public');
 const keyUtils = require('./key_utils');
 const createHash = require('create-hash')
 const promiseAsync = require('./promise-async')
-
-const G = secp256k1.G
-const n = secp256k1.n
 
 module.exports = PrivateKey;
 
@@ -27,20 +25,26 @@ module.exports = PrivateKey;
 function PrivateKey(d) {
     if(typeof d === 'string') {
         return PrivateKey.fromString(d)
-    } else if(Buffer.isBuffer(d)) {
-        return PrivateKey.fromBuffer(d)
-    } else if(typeof d === 'object' && BigInteger.isBigInteger(d.d)) {
+    } else if(typeof d === 'object' && Buffer.isBuffer(d.d)) {
         return PrivateKey(d.d)
     }
 
-    if(!BigInteger.isBigInteger(d)) {
+    if(!Buffer.isBuffer(d)) {
         throw new TypeError('Invalid private key')
+    }
+
+    if(d.length === 33 && d[32] === 1) {
+      // remove compression flag
+      d = d.slice(0, -1)
+    }
+    if (32 !== d.length) {
+      throw new Error(`Expecting 32 bytes, instead got ${d.length}`);
     }
 
     /** @return {string} private key like PVT_K1_base58privatekey.. */
     function toString() {
       // todo, use PVT_K1_
-      // return 'PVT_K1_' + keyUtils.checkEncode(toBuffer(), 'K1')
+      // return 'PVT_K1_' + keyUtils.checkEncode(d, 'K1')
       return toWif()
     }
 
@@ -48,9 +52,8 @@ function PrivateKey(d) {
         @return  {wif}
     */
     function toWif() {
-        var private_key = toBuffer();
         // checksum includes the version
-        private_key = Buffer.concat([new Buffer([0x80]), private_key]);
+        var private_key = Buffer.concat([new Buffer([0x80]), d]);
         return keyUtils.checkEncode(private_key, 'sha256x2')
     }
 
@@ -65,12 +68,11 @@ function PrivateKey(d) {
             // S L O W in the browser
             return public_key
         }
-        const Q = secp256k1.G.multiply(d);
-        return public_key = PublicKey.fromPoint(Q);
+        return public_key = PublicKey.fromBuffer(secp256k1Lib.publicKeyCreate(d));
     }
 
     function toBuffer() {
-        return d.toBuffer(32);
+        return d;
     }
 
     /**
@@ -86,7 +88,7 @@ function PrivateKey(d) {
           BigInteger.fromBuffer( KB.slice( 1,33 )), // x
           BigInteger.fromBuffer( KB.slice( 33,65 )) // y
         )
-        let r = toBuffer()
+        let r = d
         let P = KBP.multiply(BigInteger.fromBuffer(r))
         let S = P.affineX.toBuffer({size: 32})
         // SHA512 used in ECIES
@@ -114,12 +116,12 @@ function PrivateKey(d) {
     */
     function getChildKey(name) {
       // console.error('WARNING: getChildKey untested against eosd'); // no eosd impl yet
-      const index = createHash('sha256').update(toBuffer()).update(name).digest()
+      const index = createHash('sha256').update(d).update(name).digest()
       return PrivateKey(index)
     }
 
     function toHex() {
-        return toBuffer().toString('hex');
+        return d.toString('hex');
     }
 
     return {
@@ -164,14 +166,7 @@ PrivateKey.fromBuffer = function(buf) {
     if (!Buffer.isBuffer(buf)) {
         throw new Error("Expecting parameter to be a Buffer type");
     }
-    if(buf.length === 33 && buf[32] === 1) {
-      // remove compression flag
-      buf = buf.slice(0, -1)
-    }
-    if (32 !== buf.length) {
-      throw new Error(`Expecting 32 bytes, instead got ${buf.length}`);
-    }
-    return PrivateKey(BigInteger.fromBuffer(buf));
+    return PrivateKey(buf);
 }
 
 /**
